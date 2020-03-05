@@ -4,10 +4,12 @@ import numpy as np
 from PIL import Image
 import numpy as np
 import os
+import cv2
 
 # Converts a Tensor into a Numpy array
 # |imtype|: the desired type of the converted numpy array
-def tensor2im(image_tensor, imtype=np.uint8, normalize=True):
+def tensor2im(image_tensor,max_value, min_value, imtype=np.uint16, normalize=True):
+    imtype = np.uint16
     if isinstance(image_tensor, list):
         image_numpy = []
         for i in range(len(image_tensor)):
@@ -15,18 +17,20 @@ def tensor2im(image_tensor, imtype=np.uint8, normalize=True):
         return image_numpy
     image_numpy = image_tensor.cpu().float().numpy()
     if normalize:
-        image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
+        #image_numpy = ((np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0 * 255.0).astype(np.uint16)
+        #max_value, min_value = int(max_value), int(min_value)
+        image_numpy = (((np.transpose(image_numpy, (1,2,0)) + 1) * (max_value - min_value))/2.0 + min_value)
     else:
-        image_numpy = np.transpose(image_numpy, (1, 2, 0)) * 255.0      
-    image_numpy = np.clip(image_numpy, 0, 255)
+        image_numpy = np.transpose(image_numpy, (1, 2, 0)) * 255.0 * 255.0      
+    #image_numpy = np.clip(image_numpy, 0, 255)
     if image_numpy.shape[2] == 1 or image_numpy.shape[2] > 3:        
         image_numpy = image_numpy[:,:,0]
-    return image_numpy.astype(imtype)
+    return image_numpy.astype(np.uint16)
 
 # Converts a one-hot tensor into a colorful label map
-def tensor2label(label_tensor, n_label, imtype=np.uint8):
+def tensor2label(label_tensor, n_label, max_value, min_value, imtype=np.uint16):
     if n_label == 0:
-        return tensor2im(label_tensor, imtype)
+        return tensor2im(label_tensor, max_value, min_value, imtype)
     label_tensor = label_tensor.cpu().float()    
     if label_tensor.size()[0] > 1:
         label_tensor = label_tensor.max(0, keepdim=True)[1]
@@ -35,9 +39,11 @@ def tensor2label(label_tensor, n_label, imtype=np.uint8):
     return label_numpy.astype(imtype)
 
 def save_image(image_numpy, image_path):
+    '''
     image_pil = Image.fromarray(image_numpy)
     image_pil.save(image_path)
-
+    '''
+    cv2.imwrite(image_path, image_numpy)
 def mkdirs(paths):
     if isinstance(paths, list) and not isinstance(paths, str):
         for path in paths:
@@ -54,7 +60,7 @@ def mkdir(path):
 # https://github.com/ycszen/pytorch-seg/blob/master/transform.py
 # Modified so it complies with the Citscape label map colors
 ###############################################################################
-def uint82bin(n, count=8):
+def uint82bin(n, count=16):
     """returns the binary of integer n, count refers to amount of bits"""
     return ''.join([str((n >> y) & 1) for y in range(count-1, -1, -1)])
 

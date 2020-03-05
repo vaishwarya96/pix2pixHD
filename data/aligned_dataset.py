@@ -2,6 +2,9 @@ import os.path
 from data.base_dataset import BaseDataset, get_params, get_transform, normalize
 from data.image_folder import make_dataset
 from PIL import Image
+import cv2
+import numpy as np
+import torch
 
 class AlignedDataset(BaseDataset):
     def initialize(self, opt):
@@ -34,28 +37,47 @@ class AlignedDataset(BaseDataset):
       
     def __getitem__(self, index):        
         ### input A (label maps)
-        A_path = self.A_paths[index]              
-        A = Image.open(A_path)        
-        params = get_params(self.opt, A.size)
+        A_path = self.A_paths[index]          
+        #A = Image.open(A_path)       
+        A = cv2.imread(A_path, -1)
+        A_max, A_min = np.max(A), np.min(A)
+        A = 2 * (A - A_min)/(A_max - A_min) - 1
+
+        #A=A/255.0/255.0
+        #A = 2*A-1
+
+        #params = get_params(self.opt, A.size)
         if self.opt.label_nc == 0:
-            transform_A = get_transform(self.opt, params)
-            A_tensor = transform_A(A.convert('RGB'))
+            #transform_A = get_transform(self.opt, params)
+            #A_tensor = transform_A(A.convert('RGB'))
+            #A_tensor = transform_A(A)
+            A_tensor = torch.from_numpy(A).float().unsqueeze(0)
+
         else:
             transform_A = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
-            A_tensor = transform_A(A) * 255.0
+            A_tensor = transform_A(A) * 255.0 
 
         B_tensor = inst_tensor = feat_tensor = 0
         ### input B (real images)
         if self.opt.isTrain or self.opt.use_encoded_image:
             B_path = self.B_paths[index]   
-            B = Image.open(B_path).convert('RGB')
-            transform_B = get_transform(self.opt, params)      
-            B_tensor = transform_B(B)
+            #B = Image.open(B_path).convert('RGB')
+            #B = Image.open(B_path)
+            B = cv2.imread(B_path, -1)
+            B_max, B_min = np.max(B), np.min(B)
+            B = 2 * (B - B_min)/(B_max - B_min) - 1
+
+            #B = B/255.0/255.0
+            #B = 2*B-1
+
+            #transform_B = get_transform(self.opt, params)      
+            #B_tensor = transform_B(B)
+            B_tensor = torch.from_numpy(B).float().unsqueeze(0)
 
         ### if using instance maps        
         if not self.opt.no_instance:
             inst_path = self.inst_paths[index]
-            inst = Image.open(inst_path)
+            inst = Image.open(inst_path).convert('RGB')
             inst_tensor = transform_A(inst)
 
             if self.opt.load_features:
@@ -63,10 +85,9 @@ class AlignedDataset(BaseDataset):
                 feat = Image.open(feat_path).convert('RGB')
                 norm = normalize()
                 feat_tensor = norm(transform_A(feat))                            
-
         input_dict = {'label': A_tensor, 'inst': inst_tensor, 'image': B_tensor, 
-                      'feat': feat_tensor, 'path': A_path}
-
+                'feat': feat_tensor, 'path': A_path, 'A_max':str(A_max), 'A_min':str(A_min)}
+        #print(torch.max(A_tensor), torch.min(A_tensor))
         return input_dict
 
     def __len__(self):

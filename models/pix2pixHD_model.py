@@ -186,6 +186,7 @@ class Pix2PixHDModel(BaseModel):
                    
         # VGG feature matching loss
         loss_G_VGG = 0
+        #self.opt.no_vgg_loss = True
         if not self.opt.no_vgg_loss:
             loss_G_VGG = self.criterionVGG(fake_image, real_image) * self.opt.lambda_feat
         

@@ -386,7 +386,14 @@ from torchvision import models
 class Vgg19(torch.nn.Module):
     def __init__(self, requires_grad=False):
         super(Vgg19, self).__init__()
-        vgg_pretrained_features = models.vgg19(pretrained=True).features
+        #vgg_pretrained_features = models.vgg19(pretrained=True).features
+        vgg_pretrained = models.vgg19(pretrained=True)
+        for param in vgg_pretrained.parameters():
+            param.requires_grad=False
+        layers = list(vgg_pretrained.features.children())[:-1]
+        layers[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1)
+        vgg_pretrained_features = nn.Sequential(*layers).cuda()
+
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()
         self.slice3 = torch.nn.Sequential()
