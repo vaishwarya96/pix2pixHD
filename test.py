@@ -56,14 +56,15 @@ for i, data in enumerate(dataset):
     elif opt.onnx:
         generated = run_onnx(opt.onnx, opt.data_type, minibatch, [data['label'], data['inst']])
     else:        
-        generated = model.inference(data['label'], data['inst'], data['image'])
+        generated = model.inference(data['label'], data['inst'], data['image'], data['orig_label'])
     A_max_value = float(data['A_max'][0])
     A_min_value = float(data['A_min'][0])
     #B_max_value = float(data['B_max'][0])
     #B_min_value = float(data['B_min'][0])
         
-    visuals = OrderedDict([('input_label', util.tensor2label(data['label'][0], opt.label_nc, A_max_value, A_min_value)),
-                           ('synthesized_image', util.tensor2im(generated.data[0], A_max_value, A_min_value))])
+    #visuals = OrderedDict([('input_label', util.tensor2label(data['label'][0], opt.label_nc, A_max_value, A_min_value)),
+    #                       ('synthesized_image', util.tensor2im(generated.data[0], A_max_value, A_min_value))])
+    visuals = OrderedDict([('', util.tensor2im(generated.data[0], A_max_value, A_min_value))])
     img_path = data['path']
     print('process image... %s' % img_path)
     visualizer.save_images(webpage, visuals, img_path)

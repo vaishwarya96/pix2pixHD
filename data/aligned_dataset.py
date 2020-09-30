@@ -40,9 +40,18 @@ class AlignedDataset(BaseDataset):
         A_path = self.A_paths[index]          
         #A = Image.open(A_path)       
         A = cv2.imread(A_path, -1)
+        C = cv2.imread(A_path, -1)
+        A = np.stack((A,)*3, axis=-1)
+        C = np.stack((C,)*3, axis=-1)
+
+        mean = np.mean(A)
+        A[np.where((A[:,:,0] == 0) & (A[:,:,1] == 0) & (A[:,:,2]==0))] = mean
+
         A_max, A_min = np.max(A), np.min(A)
+        C = C/65535.0
         A = 2 * (A - A_min)/(A_max - A_min) - 1
 
+        C = (2 * C - 1)
         #A=A/255.0/255.0
         #A = 2*A-1
 
@@ -51,7 +60,8 @@ class AlignedDataset(BaseDataset):
             #transform_A = get_transform(self.opt, params)
             #A_tensor = transform_A(A.convert('RGB'))
             #A_tensor = transform_A(A)
-            A_tensor = torch.from_numpy(A).float().unsqueeze(0)
+            A_tensor = torch.from_numpy(A.transpose((2,0,1))).float()
+            C_tensor = torch.from_numpy(C.transpose((2,0,1))).float()
 
         else:
             transform_A = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
@@ -65,14 +75,14 @@ class AlignedDataset(BaseDataset):
             #B = Image.open(B_path)
             B = cv2.imread(B_path, -1)
             B_max, B_min = np.max(B), np.min(B)
-            B = 2 * (B - B_min)/(B_max - B_min) - 1
+            B = 2 * (B - A_min)/(A_max - A_min) - 1
 
             #B = B/255.0/255.0
             #B = 2*B-1
 
             #transform_B = get_transform(self.opt, params)      
             #B_tensor = transform_B(B)
-            B_tensor = torch.from_numpy(B).float().unsqueeze(0)
+            B_tensor = torch.from_numpy(B.transpose((2,0,1))).float()
 
         ### if using instance maps        
         if not self.opt.no_instance:
@@ -84,8 +94,9 @@ class AlignedDataset(BaseDataset):
                 feat_path = self.feat_paths[index]            
                 feat = Image.open(feat_path).convert('RGB')
                 norm = normalize()
-                feat_tensor = norm(transform_A(feat))                            
-        input_dict = {'label': A_tensor, 'inst': inst_tensor, 'image': B_tensor, 
+                feat_tensor = norm(transform_A(feat))      
+        
+        input_dict = {'label': A_tensor, 'inst': inst_tensor, 'image': B_tensor, 'orig_label': C_tensor,
                 'feat': feat_tensor, 'path': A_path, 'A_max':str(A_max), 'A_min':str(A_min)}
         #print(torch.max(A_tensor), torch.min(A_tensor))
         return input_dict

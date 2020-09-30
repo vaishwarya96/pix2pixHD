@@ -81,6 +81,7 @@ class GANLoss(nn.Module):
 
     def get_target_tensor(self, input, target_is_real):
         target_tensor = None
+        #print(input.shape)
         if target_is_real:
             create_label = ((self.real_label_var is None) or
                             (self.real_label_var.numel() != input.numel()))
@@ -386,14 +387,15 @@ from torchvision import models
 class Vgg19(torch.nn.Module):
     def __init__(self, requires_grad=False):
         super(Vgg19, self).__init__()
-        #vgg_pretrained_features = models.vgg19(pretrained=True).features
+        vgg_pretrained_features = models.vgg19(pretrained=True).features
+        '''
         vgg_pretrained = models.vgg19(pretrained=True)
         for param in vgg_pretrained.parameters():
             param.requires_grad=False
         layers = list(vgg_pretrained.features.children())[:-1]
         layers[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1)
         vgg_pretrained_features = nn.Sequential(*layers).cuda()
-
+        '''
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()
         self.slice3 = torch.nn.Sequential()
